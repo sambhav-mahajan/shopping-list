@@ -1,0 +1,320 @@
+swagger: "2.0"
+info:
+  title: Shopping list API
+  description: API to enable users to create shopping lists 
+  version: 1.0.0
+host: "localhost:5678"
+tags:
+  - name: Shopping list
+    description: Shopping list details
+  - name: Users
+    description: Users using the the list
+  - name: healthCheck
+    description: Check health of endpoint
+paths:
+  /create-list:
+    x-swagger-router-controller: shoppingList.controller
+    post:
+      tags:
+        - Shopping list
+      summary: Create a new shopping list
+      description: ''
+      operationId: createList
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Creating a new shopping list"
+        required: true
+        schema:
+            $ref: '#/definitions/list'
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+              $ref: '#/definitions/list'
+  /add-item:
+    x-swagger-router-controller: shoppingList.controller
+    post:
+      tags:
+        - Shopping list
+      summary: Add a new item to the list
+      # security:
+      # - basicAuth: []
+      description: ''
+      operationId: addItem
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "item added to shopping list"
+        required: true
+        schema:
+            $ref: '#/definitions/item'
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+              $ref: '#/definitions/item'
+  /get-list/{listID}:
+    x-swagger-router-controller: shoppingList.controller
+    get:
+      # security:
+      #   - basicAuth: []
+      tags:
+       - Shopping list
+      summary: "get a list using list-id"
+      description: ''
+      operationId: getList
+      produces:
+      - "application/json"
+      parameters:
+      - name: "listID"
+        in: "path"
+        required: true
+        description: "ID of List to return"
+        type: integer
+      responses:
+        "200":
+          description: Ok
+          schema:
+            $ref: '#/definitions/list'
+            
+  /share-list/{list-id}:
+    post:
+      tags:
+        - 'Shopping list'
+      summary: 'Shares shopping list via email'
+      description: ''
+      operationId: ''
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - in: 'path'
+          name: 'list-id'
+          required: true
+          description: 'list-id of list to share'
+          type: integer
+        - name: 'Email id'
+          in: 'query'
+          description: 'Email id to share to'
+          type: 'string'
+          required: true
+        - name: 'viewRegistryUrl'
+          in: 'query'
+          description: "Example - myshop.com/list/{list-id}?view-list=true"
+          type: 'string'
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+  /mark-as-bought:
+    put:
+      tags:
+        - 'Shopping list'
+      summary: 'mark item as bought'
+      description: ''
+      operationId: ''
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        
+        - name: 'variant'
+          in: 'query'
+          description: 'variantID of the product'
+          required: true
+          type: 'integer'
+        - in: 'query'
+          name: 'list-id'
+          required: true
+          description: 'list-id to update'
+          type: integer
+        - name: 'bought'
+          in: 'query'
+          description: 'bought or not'
+          required: true
+          type: 'boolean'
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/item'  
+  /add-bill/{list-id}/uploadBill:
+    post:
+      tags:
+      - "Shopping list"
+      summary: "uploads bills for shopped items"
+      description: ""
+      operationId: ""
+      consumes:
+      - "multipart/form-data"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "list-id"
+        in: "path"
+        description: "ID of list to upload bill for"
+        required: true
+        type: "integer"
+        format: "int64"
+      - name: "additionalMetadata"
+        in: "formData"
+        description: "Additional data to pass to server"
+        required: false
+        type: "string"
+      - name: "file"
+        in: "formData"
+        description: "file to upload"
+        required: true
+        type: "file"
+      responses:
+        "200":
+          description: "successful operation"
+  /add-user:
+    post:
+      tags:
+      - "Users"
+      summary: "Create user"
+      description: ""
+      operationId: "createUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Created user object"
+        required: true
+        schema:
+          $ref: "#/definitions/User"
+      responses:
+        "200":
+          description: "successful operation"
+  /get-lists/{userID}:
+    get:
+      # security:
+      #   - basicAuth: []
+      tags:
+       - Users
+      summary: "get a list using userid"
+      description: ''
+      operationId: e
+      produces:
+      - "application/json"
+      parameters:
+      - name: "userID"
+        in: "path"
+        required: true
+        description: "get all shopping list based on user Id"
+        type: integer
+      responses:
+        "200":
+          description: Ok
+          schema:
+            $ref: '#/definitions/list'
+  /health:
+    x-swagger-router-controller: health.controller
+    get:
+      tags:
+       - healthCheck
+      summary: Check Health
+      description: ''
+      operationId: checkHealth
+      produces:
+      - "text"
+      responses:
+        "200":
+          description: Ok
+definitions:
+  list:
+    type: object
+    required: 
+      - user-id
+      - list-id
+    properties:
+      user-id:
+        type: integer
+        example: 12345
+      list-id:
+        type: integer
+        example: 1
+      list-name:
+        type: string
+        example: "list 1"
+      shareable:
+        type: boolean
+      items-in-list:
+        type: array
+        items:
+          type: object
+  item:
+    type: object
+    required:
+      - variant-id
+      - list-id
+    properties:
+      list-id:
+        type: integer
+        example: 1
+      variant-id:
+        type: integer
+        format: int64
+        example: 4567890
+      name:
+        type: string
+        example: Shoes
+      quantity:
+        type: integer
+        format: int64
+        example: 1
+      bought:
+        type: boolean
+        example: false
+  User:
+    type: "object"
+    properties:
+      id:
+        type: "integer"
+        format: "int64"
+      username:
+        type: "string"
+        example: "sm1234"
+      firstName:
+        type: "string"
+        example: "Sambhav"
+      lastName:
+        type: "string"
+        example: "Mahajan"
+      email:
+        type: "string"
+        example: "abc@gmail.com"
+      password:
+        type: "string"
+        example: "*****"
+      userStatus:
+        type: "integer"
+        format: "int32"
+        description: "User Status"
+    xml:
+      name: "User"

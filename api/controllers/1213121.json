@@ -1,0 +1,15 @@
+{
+  "user-id": 12345,
+  "list-id": 1213121,
+  "list-name": "list 1",
+  "shareable": true,
+  "items": [
+    {
+      "list-id": 1213121,
+      "variant-id": 4567890,
+      "name": "Shoes",
+      "quantity": 1,
+      "bought": false
+    }
+  ]
+}

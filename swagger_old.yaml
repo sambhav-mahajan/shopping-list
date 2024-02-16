@@ -1,0 +1,168 @@
+swagger: "2.0"
+info:
+  title: Shopping list API
+  description: API to enable users to create shopping lists 
+  version: 1.0.0
+host: "localhost:5678"
+# basePath: "/v2"
+tags:
+  - name: customer
+    description: Everything about customers
+  - name: healthCheck
+    description: Check health of endpoint
+  - name: todolist
+    description: Todo list
+paths:
+  /customers:
+    x-swagger-router-controller: customer.controller
+    post:
+      tags:
+        - customer
+      summary: Add a new customer to the store
+      description: ''
+      operationId: addCustomer
+      security:
+      - basicAuth: []
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "item added to shopping list"
+        required: true
+        schema:
+            $ref: '#/definitions/Customer'
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+              $ref: '#/definitions/Customer'
+    get:
+      tags:
+       - customer
+      summary: Get customers data
+      description: ''
+      operationId: getCustomers
+      security:
+       - basicAuth: []
+      parameters:
+      - name: "customerId"
+        in: "query"
+        description: "ID of customer to return"
+        type: string
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: '#/definitions/Customer'
+    delete:
+      tags:
+      - "customer"
+      summary: "delete customer by ID"
+      description: "deletes a single customer"
+      operationId: deleteCustomerById
+      security:
+       - basicAuth: []
+      parameters:
+      - name: "customerId"
+        in: "query"
+        required: true
+        description: "ID of customer to return"
+        type: string
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+              $ref: '#/definitions/deleteAcknowledged'
+  /health:
+    x-swagger-router-controller: health.controller
+    get:
+      tags:
+       - healthCheck
+      summary: Check Health
+      description: ''
+      operationId: checkHealth
+      produces:
+      - "text"
+      responses:
+        "200":
+          description: Ok
+  /todolist:
+    x-swagger-router-controller: todolist.controller.js
+    get:
+      tags:
+       - todolist
+      summary: TO-DO LIST!
+      description: ''
+      operationId: createList
+      produces:
+      - "application/json"
+      parameters:
+      - name: "listID"
+        in: "query"
+        required: true
+        description: "ID of List to return"
+        type: string
+      responses:
+        "200":
+          description: Ok
+          schema:
+            type: "array"
+            items:
+              $ref: '#/definitions/List'
+definitions:
+      List:
+        type: object
+        required:
+          - id
+        properties:
+          id:
+            type: integer
+            format: int64
+          list_name:
+            type: string
+            # example: Grocery List
+          
+      Customer:
+        type: object
+        required:
+          - name
+          - email
+        properties:
+          id:
+            type: integer
+            format: int64
+          name:
+            type: string
+            example: John
+          email:
+            type: string
+            example: s@123.com
+          address:
+            type: string
+            example: India
+          age:
+            type: integer
+          gender:
+            type: string
+            description: Gender
+            enum:
+              - Male
+              - Female
+              - Other
+      deleteAcknowledged:
+        type: object
+        properties:
+         acknowledged:
+          type: boolean
+         deletedCount:
+          type: integer
+securityDefinitions:
+  basicAuth:
+    type: basic

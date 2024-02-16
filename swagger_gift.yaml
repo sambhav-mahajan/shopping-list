@@ -1,0 +1,1437 @@
+swagger: '2.0'
+info:
+  description: 'The Gift Registry APIs has 3 main personas, shopper-prime or the registry creator, gifter and the merchant'
+  version: '1.0.0'
+  title: 'Swym Gift Registry API'
+basePath: '/giftRegistry/v1'
+tags:
+  - name: 'Shopper Prime'
+    description: 'Actions allowed to shopper Prime or registry owner'
+  - name: 'Storefront / Unauthenticated - Gifters'
+    description: 'Actions specific to storefront operations by gifters'
+  - name: 'Order'
+    description: 'Webhook reciever for orders'
+  - name: 'User Auth'
+    description: 'Actions specific to user authorzation'
+  - name: 'Admin API'
+    description: 'Actions specific to operations by Merchant'
+  - name: 'Health'
+    description: 'Health Check'
+
+securityDefinitions:
+  ApiKeyAuth:
+    type: apiKey
+    in: query
+    name: pid
+  basicAuth:
+    type: basic
+    description: 'Base 64 encoded Regid:SessionId'
+  MerchantApiKey:
+    type: apiKey
+    in: header
+    name: SWYM_MERCHANT_API_KEY
+  userJwtAuth:
+    type: apiKey
+    in: header
+    name: jwtToken
+paths:
+  /shopper/generateAuth:
+    x-swagger-router-controller: userJwtController
+    post:
+      tags:
+        - 'User Auth'
+      summary: 'Register/provide access to the user under respective merchant and app'
+      operationId: 'generateUserAccessToken'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      security:
+        - ApiKeyAuth: []
+          MerchantApiKey: []
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'User details'
+          required: true
+          schema:
+            $ref: '#/definitions/registerUserRequestBody'
+      responses:
+        200:
+          description: Successfully register / login of the user
+          schema:
+            $ref: '#/definitions/registerUserResponseBody'
+        400:
+          description: Bad Request
+
+  /shopperPrime/registry:
+    x-swagger-router-controller: shopperPrime.controller
+    post:
+      tags:
+        - 'Shopper Prime'
+      summary: 'Create a registry for respective shopper prime'
+      description: 'Ability to create a new registry attached to a specific user, include basic metadata and attach a wishlist id to import items in the registry from a wishlist'
+      operationId: 'createRegistry'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'Registry details'
+          required: true
+          schema:
+            $ref: '#/definitions/createRegistry'
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/Registry'
+    put:
+      tags:
+        - 'Shopper Prime'
+      summary: 'Update a registry for respective shopper prime'
+      description: 'Ability to update an existing registry, by providing the unique registry Id'
+      operationId: 'updateRegistry'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'Registry details'
+          required: true
+          schema:
+            $ref: '#/definitions/updateRegistry'
+        - name: 'registryId'
+          in: 'query'
+          description: 'registry id to update'
+          required: true
+          type: 'string'
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/Registry'
+    get:
+      tags:
+        - 'Shopper Prime'
+      summary: 'Get Registry Details'
+      description: 'Get registry by id or all registries belonging to a specific user. Get an option to enrich the registry with listed product details, already bought product details.'
+      operationId: 'getRegistryByShopperPrime'
+      produces:
+        - 'application/json'
+      parameters:
+        - name: 'registryId'
+          in: 'query'
+          description: 'Id of the registry to fetch'
+          type: 'string'
+        - name: 'userEmail'
+          in: 'query'
+          description: 'email of the registry owner'
+          required: true
+          type: 'string'
+        - name: 'includeListProducts'
+          in: 'query'
+          description: 'include product list (applicable only for fetch registry by Id)'
+          type: 'boolean'
+          default: false
+        - name: 'dontEnrichProducts'
+          in: 'query'
+          description: 'Get product based metadata from the platform apis'
+          type: 'boolean'
+          default: false
+        - name: 'includeOrders'
+          in: 'query'
+          description: 'enrich order list (applicable only for fetch registry by Id)'
+          type: 'boolean'
+          default: false
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/Registry'
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+
+  /shopperPrime/registry/productQuantity:
+    x-swagger-router-controller: shopperPrime.controller
+    put:
+      tags:
+        - 'Shopper Prime'
+      summary: 'Update quantity of products for respective shopper prime list'
+      description: 'Can update product quantity'
+      operationId: 'updateRegistryProductQuantity'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'Registry details'
+          required: true
+          schema:
+            $ref: '#/definitions/updateRegistryQuantity'
+        - name: 'registryId'
+          in: 'query'
+          description: 'registry id to update'
+          required: true
+          type: 'string'
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/Registry'
+
+  /shopperPrime/registry/archive:
+    x-swagger-router-controller: shopperPrime.controller
+    post:
+      tags:
+        - 'Admin API'
+      summary: 'Archive registries by id'
+      description: 'Can archive a registry by its id'
+      operationId: 'archiveRegistryById'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'list of registry ids to be archived and isArchived a boolean'
+          required: true
+          schema:
+            type: 'object'
+            properties:
+              isArchived:
+                type: 'boolean'
+                default: true
+              registryIds:
+                type: 'array'
+                items:
+                  type: 'integer'
+      security:
+        - MerchantApiKey: []
+          ApiKeyAuth: []
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/Registry'
+
+  /shopperPrime/gifters:
+    x-swagger-router-controller: email.controller
+    post:
+      tags:
+        - 'Shopper Prime'
+      summary: 'Add new Gifters'
+      description: 'Ability to add new gifter email ids and details'
+      operationId: 'addGifters'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'List of Gifters'
+          required: true
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/gifter'
+        - name: 'registryId'
+          in: 'query'
+          description: 'unique id for the registry'
+          type: 'string'
+          required: true
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/gifter'
+    get:
+      tags:
+        - 'Shopper Prime'
+      summary: 'Get Gifters with details belonging to a registry'
+      description: 'Gifter List for a registry'
+      operationId: 'getGiftersList'
+      produces:
+        - 'application/json'
+      parameters:
+        - name: 'registryId'
+          in: 'query'
+          description: 'Id of the registry to fetch'
+          type: 'string'
+          required: true
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/gifter'
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+
+  /shopperPrime/registry/modifyProducts:
+    x-swagger-router-controller: shopperPrime.controller
+    post:
+      tags:
+        - 'Shopper Prime'
+      summary: 'Add/Update/Delete Products in a registry'
+      description: 'Ability Add/Update/Delete Products of the registry'
+      operationId: 'modifyRegistryProducts'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'Registry details'
+          required: true
+          schema:
+            $ref: '#/definitions/modifyRegistryProducts'
+        - name: 'registryId'
+          in: 'query'
+          description: 'registry id to update'
+          required: true
+          type: 'string'
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/Registry'
+
+  /shopperPrime/shareViaEmail:
+    x-swagger-router-controller: email.controller
+    post:
+      # deprecated: true
+      tags:
+        - 'Shopper Prime'
+      summary: 'Shares registry via email'
+      description: 'Ability to add new gifter email ids and allow for immediate email message to be sent or trigger later, the api will pull the whole list and send the email'
+      operationId: 'sendEmail'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'List of Gifter Ids'
+          schema:
+            default: []
+        - name: 'sendEmailToAll'
+          in: 'query'
+          description: 'Send Email to all gifters'
+          type: 'boolean'
+          default: false
+        - name: 'sendEmailNow'
+          in: 'query'
+          description: 'Initiate email immediately'
+          type: 'boolean'
+          default: true
+        - name: 'registryId'
+          in: 'query'
+          description: 'unique id for the registry'
+          type: 'string'
+          required: true
+        - name: 'viewRegistryUrl'
+          in: 'query'
+          description: "URL path along with parameters pointing to Registry View page\n Example - *myshop.com/pages/gifter?view-registry=true*"
+          type: 'string'
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+
+  /shopperPrime/sendThanks:
+    x-swagger-router-controller: email.controller
+    post:
+      deprecated: true
+      tags:
+        - 'Shopper Prime'
+      summary: 'post a thank you note to a gifter'
+      description: "Send a thank you to the gifter, after a purchase is made - If the email id is recorded during the purchase the same will be used, else, it can be provided with the below request.\n\n Note - If order has an email attached for the gifter and you provide another email, this will override the one previously recorded during the purchase."
+      operationId: 'sendThanks'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      parameters:
+        - name: 'registryId'
+          in: 'query'
+          description: 'Id of the registry to send thanks'
+          type: 'string'
+          required: true
+        - in: 'body'
+          name: 'body'
+          description: 'Thank you note details'
+          required: true
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/gifterThanksObject'
+
+      security:
+        - userJwtAuth: []
+        - ApiKeyAuth: []
+          basicAuth: []
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/gifter'
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+
+  /storefront/checkout:
+    x-swagger-router-controller: storefront.controller
+    post:
+      tags:
+        - 'Admin API'
+      summary: 'Creates checkout page with prefilled details'
+      description: 'Checkout URL for shopify specific checkout page using Draft Orders'
+      operationId: 'createCheckout'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      security:
+        - ApiKeyAuth: []
+          MerchantApiKey: []
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'draft order input'
+          schema:
+            $ref: '#/definitions/draftOrderPostInput_shopify'
+        - name: 'registryId'
+          in: 'query'
+          description: 'registry from which Order was placed'
+          type: 'string'
+          required: true
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/draftOrderPostOutput_shopify'
+
+  /storefront/checkoutCalculate:
+    x-swagger-router-controller: storefront.controller
+    post:
+      tags:
+        - 'Storefront / Unauthenticated - Gifters'
+      summary: 'Get the checkout options from shopify'
+      description: 'Checkout options for shopify specific checkout using Draft Orders'
+      operationId: 'calculateCheckout'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'draft order input'
+          schema:
+            $ref: '#/definitions/draftOrderCalculatePostInput_shopify'
+        - name: 'registryId'
+          in: 'query'
+          description: 'registry from which Order will be placed'
+          type: 'string'
+          required: true
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/draftOrderCalculatePostOutput_shopify'
+
+  /storefront/markBought:
+    x-swagger-router-controller: storefront.controller
+    post:
+      tags:
+        - 'Storefront / Unauthenticated - Gifters'
+      summary: 'Creates a placeholder in case products already bought elsewhere'
+      description: 'Placeholder order for items bought elsewhere'
+      operationId: 'markAsBought'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'List of products'
+          required: true
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/productsCreatePlaceholderOrder'
+        - name: 'registryId'
+          in: 'query'
+          description: 'registry from which items are bought'
+          type: 'string'
+          required: true
+        - name: 'note'
+          in: 'query'
+          description: 'Custom Message from gifter'
+          type: 'string'
+        - name: 'gifterName'
+          in: 'query'
+          description: 'Name of the gifter'
+          type: 'string'
+        - name: 'messageId'
+          in: 'query'
+          description: 'The unique message Id attached to a registry gifter'
+          type: 'string'
+        - name: 'gifterEmail'
+          in: 'query'
+          description: 'Email of the gifter'
+          type: 'string'
+          format: 'email'
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/placeholderOrder'
+
+  /storefront/registry:
+    x-swagger-router-controller: storefront.controller
+    get:
+      tags:
+        - 'Storefront / Unauthenticated - Gifters'
+      summary: 'Get Registry details, for gifter preview'
+      description: 'Get registry by id for a gifter preview, will not contain order information and other critical information allowed only for the registry owner.'
+      operationId: 'getRegistry'
+      produces:
+        - 'application/json'
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: 'registryId'
+          in: 'query'
+          description: 'Id of the registry to fetch'
+          type: 'string'
+          required: true
+        - name: messageId
+          in: 'query'
+          description: 'uniqueId Assigned to track clicks via email'
+          type: 'string'
+        - name: 'includeListProducts'
+          in: 'query'
+          description: 'enrich product list'
+          type: 'boolean'
+          default: false
+        - name: 'dontEnrichProducts'
+          in: 'query'
+          description: 'Get product based metadata from the platform apis'
+          type: 'boolean'
+          default: false
+        - name: 'token'
+          in: 'query'
+          description: 'token for registry'
+          type: 'string'
+
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            type: 'array'
+            items:
+              $ref: '#/definitions/StorefrontRegistry'
+
+  /storefront/registry/generateAuthToken:
+    x-swagger-router-controller: storefront.controller
+    post:
+      tags:
+        - 'Storefront / Unauthenticated - Gifters'
+      summary: 'Verify password protected registry'
+      description: 'Verify password protected registry password and generate auth token to get registry details'
+      operationId: 'verifyRegistryPasswordAndGenerateAuthToken'
+      consumes:
+        - 'application/json'
+      produces:
+        - 'application/json'
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: 'body'
+          name: 'body'
+          description: 'generate auth token for registry'
+          required: true
+          schema:
+            $ref: '#/definitions/generateAuthTokenBody'
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error/ Wrong password entered'
+        '200':
+          description: 'successful operation'
+          schema:
+            type: 'string'
+            description: 'auth token to access registry'
+
+  /storefront/searchRegistry:
+    x-swagger-router-controller: storefront.controller
+    get:
+      tags:
+        - 'Storefront / Unauthenticated - Gifters'
+      summary: 'Search by registry name, creator/co-creator name, email'
+      description: 'Paginated search by registry name, creator/co-creator name, email.'
+      operationId: 'searchRegistry'
+      produces:
+        - 'application/json'
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: 'occasion'
+          in: 'query'
+          description: 'Search by occasion'
+          type: 'string'
+        - name: 'searchString'
+          in: 'query'
+          description: 'Search by registry name, creator/co-creator name, email'
+          type: 'string'
+          required: true
+        - name: 'page'
+          in: 'query'
+          description: 'get data on page given starting from 0'
+          type: 'integer'
+          required: true
+        - name: 'pageSize'
+          in: 'query'
+          description: 'number of records per page, given number of rows must be in range of 10-100 by default page size is set to 50'
+          type: 'integer'
+          minimum: 10
+          maximum: 100
+          default: 50
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+          schema:
+            $ref: '#/definitions/paginatedObject'
+
+  /health:
+    x-swagger-router-controller: health.controller
+    get:
+      tags:
+        - 'Health'
+      summary: 'health check'
+      description: 'health check'
+      operationId: 'healthCheck'
+      responses:
+        '400':
+          description: 'Bad Request'
+        '403':
+          description: 'Unauthorized'
+        '500':
+          description: 'Internal Server Error'
+        '200':
+          description: 'successful operation'
+
+definitions:
+  generateAuthTokenBody:
+    type: 'object'
+    required:
+      - password
+      - registryId
+    properties:
+      password:
+        type: 'string'
+      registryId:
+        type: 'string'
+
+  productsCreatePlaceholderOrder:
+    type: 'object'
+    required:
+      - epi
+      - qty
+      - empi
+    properties:
+      epi:
+        type: 'string'
+        description: 'variant id'
+      empi:
+        type: 'string'
+        description: 'product id'
+      qty:
+        type: 'integer'
+        description: 'product quantity'
+
+  gifterThanksObject:
+    type: 'object'
+    properties:
+      email:
+        type: 'string'
+        format: 'email'
+        description: "In case you don't wish to provide orderId, this gets higher priority over order Id"
+      message:
+        type: 'string'
+      orderId:
+        type: 'string'
+        description: 'email attached to this order id will get the thank you message'
+
+  orderDetails:
+    type: 'object'
+    properties:
+      Id:
+        type: 'integer'
+      registryId:
+        type: 'string'
+      cartToken:
+        type: 'string'
+      checkoutId:
+        type: 'string'
+      checkoutToken:
+        type: 'string'
+      email:
+        type: 'string'
+      landingSite:
+        type: 'string'
+      landingSiteRef:
+        type: 'string'
+      referringSite:
+        type: 'string'
+      createdAt:
+        type: 'string'
+      totalPrice:
+        type: 'number'
+      orderStatusUrl:
+        type: 'string'
+      pid:
+        type: 'string'
+      contactEmail:
+        type: 'string'
+      primeShopperEmail:
+        type: 'string'
+      note:
+        type: 'string'
+      gifterName:
+        type: 'string'
+      gifterEmail:
+        type: 'string'
+      thanksSent:
+        type: 'boolean'
+      isDummy:
+        type: 'boolean'
+
+  draftOrderPostInput_shopify:
+    type: 'object'
+    required:
+      - product_list
+    properties:
+      email:
+        type: 'string'
+        format: 'email'
+        description: "Registrant / Gifter's email"
+      note:
+        type: 'string'
+        description: 'Note from Gifter'
+        example: 'Congratulations on your new home!'
+      custom_attributes:
+        type: 'array'
+        items:
+          type: 'object'
+          properties:
+            key:
+              type: 'string'
+            value:
+              type: 'string'
+        example:
+          - key: gifter
+            value: John Doe
+          - key: gifterEmail
+            value: johndoe@email.com
+      shipping_line:
+        type: 'object'
+        properties:
+          shippingRateHandle:
+            type: 'string'
+            example: 'shopify-Standard-1600.00'
+          price:
+            type: 'string'
+            example: '1600.00'
+      product_list:
+        type: 'array'
+        items:
+          type: 'object'
+          properties:
+            epi:
+              type: 'integer'
+              example: 447654529
+            qty:
+              type: 'integer'
+              example: 1
+            customProperties:
+              type: 'array'
+              items:
+                type: 'object'
+                properties:
+                  key:
+                    type: 'string'
+                  value:
+                    type: 'string'
+                example:
+                  key: 'Custom Engraving'
+                  value: 'Swym Awesome Cup'
+      address:
+        $ref: '#/definitions/address'
+
+  draftOrderPostOutput_shopify:
+    type: 'object'
+    example:
+      id: 'gid://shopify/DraftOrder/1117**59'
+      invoiceUrl: 'https://shop.myshopify.com/7**007/invoices/fb0e**e8a602'
+      relativeUrl: '/cart/129321837:1,182712932:2?checkout[shipping_address][first_name]=John-doe&***checkout[shipping_address][country]=South%20America'
+      email: 'johndoe@email.com'
+      note: 'Happy Birthday'
+      status: 'OPEN'
+      subtotalPrice: '27.20'
+      totalPrice: '27.20'
+      totalShippingPrice: '9.00'
+      totalTax: '2.53'
+      currencyCode: 'USD'
+      lineItems:
+        nodes:
+          - name: 'Character - Medium / Floral'
+            quantity: 1
+            customAttributes:
+              key: 'Custom Engraving'
+              value: 'Swym Awesome Cup'
+      appliedDiscount:
+        title: 'Gift Registry Discount'
+        value: 15.0
+        valueType: 'PERCENTAGE'
+        amountV2:
+          amount: '4.8'
+          currencyCode: 'USD'
+      address:
+        $ref: '#/definitions/address'
+
+  draftOrderCalculatePostInput_shopify:
+    type: 'object'
+    properties:
+      email:
+        type: 'string'
+        format: 'email'
+        description: "Registrant / Gifter's email"
+      product_list:
+        type: 'array'
+        items:
+          type: 'object'
+          properties:
+            epi:
+              type: 'integer'
+              example: 447654529
+            qty:
+              type: 'integer'
+              example: 1
+
+  draftOrderCalculatePostOutput_shopify:
+    type: 'object'
+    example:
+      subtotalPrice: '27.20'
+      totalPrice: '27.20'
+      totalTax: '0.00'
+      currencyCode: 'USD'
+      availableShippingRates:
+        - handle: 'shopify-Standard-16**.00'
+          title: 'Standard'
+          price:
+            amount: '16**.0'
+      appliedDiscount:
+        title: 'Gift Registry Discount'
+        value: 15.0
+        valueType: 'PERCENTAGE'
+        amountV2:
+          amount: '4.8'
+          currencyCode: 'USD'
+
+  gifter:
+    type: 'object'
+    properties:
+      id:
+        type: 'integer'
+        default: 0
+      firstName:
+        type: 'string'
+      lastName:
+        type: 'string'
+      email:
+        type: 'string'
+        format: 'email'
+      phone:
+        type: 'string'
+        format: 'phone'
+      customProps:
+        type: 'array'
+        items:
+          type: 'object'
+
+  createRegistry:
+    type: 'object'
+    required:
+      - 'registryName'
+      - 'creatorName'
+      - 'email'
+      - 'expiryDate'
+      - 'address'
+    properties:
+      registryName:
+        type: 'string'
+      creatorName:
+        type: 'string'
+      coCreatorName:
+        type: 'string'
+      email:
+        type: 'string'
+      description:
+        type: 'string'
+      expiryDate:
+        type: 'string'
+        format: 'date'
+      settings:
+        type: 'object'
+        properties:
+          isPasswordProtected:
+            type: 'boolean'
+      customProps:
+        type: 'array'
+        items:
+          type: 'object'
+      mode:
+        type: 'string'
+        enum: [public, private, shareable]
+      password:
+        type: 'string'
+      address:
+        $ref: '#/definitions/address'
+      associatedListId:
+        type: 'string'
+        description: 'Id of the list created using wishlist plus API'
+      occasion:
+        type: 'string'
+      imageURL:
+        type: 'string'
+
+  updateRegistry:
+    type: 'object'
+    properties:
+      registryName:
+        type: 'string'
+      creatorName:
+        type: 'string'
+      coCreatorName:
+        type: 'string'
+      description:
+        type: 'string'
+      expiryDate:
+        type: 'string'
+        format: 'date'
+      mode:
+        type: 'string'
+        enum: [public, private, shareable]
+      settings:
+        type: 'object'
+        properties:
+          isPasswordProtected:
+            type: 'boolean'
+      customProps:
+        type: 'array'
+        items:
+          type: 'object'
+      address:
+        $ref: '#/definitions/address'
+      associatedListId:
+        type: 'string'
+      occasion:
+        type: 'string'
+      password:
+        type: 'string'
+      imageURL:
+        type: 'string'
+
+  updateRegistryQuantity:
+    type: 'array'
+    items:
+      type: 'object'
+      properties:
+        epi:
+          type: 'string'
+        askQuantity:
+          type: 'integer'
+          minimum: 1
+          default: 1
+
+  modifyRegistryProducts:
+    type: 'object'
+    properties:
+      add:
+        type: 'array'
+        items:
+          $ref: '#/definitions/productIdentity'
+      delete:
+        type: 'array'
+        items:
+          $ref: '#/definitions/productIdentity'
+
+  productIdentity:
+    type: 'object'
+    properties:
+      epi:
+        type: 'string'
+      empi:
+        type: 'string'
+      du:
+        type: 'string'
+      handle:
+        type: 'string'
+
+  StorefrontRegistry:
+    type: 'object'
+    properties:
+      id:
+        type: 'string'
+      registryName:
+        type: 'string'
+      creatorName:
+        type: 'string'
+      coCreatorName:
+        type: 'string'
+      email:
+        type: 'string'
+      description:
+        type: 'string'
+      expiryDate:
+        type: 'string'
+        format: 'date'
+      settings:
+        type: 'object'
+        properties:
+          isPasswordProtected:
+            type: 'boolean'
+      customProps:
+        type: 'array'
+        items:
+          type: 'object'
+      createdAt:
+        type: 'string'
+        format: 'date'
+      lastUpdatedAt:
+        type: 'string'
+        format: 'date'
+      associatedListId:
+        type: 'string'
+      occasion:
+        type: 'string'
+      pid:
+        type: 'string'
+      associatedListedProducts:
+        type: 'array'
+        items:
+          $ref: '#/definitions/products'
+      mode:
+        type: 'string'
+        enum: [public, private, shareable]
+      imageURL:
+        type: 'string'
+
+  Registry:
+    type: 'object'
+    properties:
+      id:
+        type: 'string'
+      registryName:
+        type: 'string'
+      creatorName:
+        type: 'string'
+      coCreatorName:
+        type: 'string'
+      email:
+        type: 'string'
+      description:
+        type: 'string'
+      expiryDate:
+        type: 'string'
+        format: 'date'
+      isArchived:
+        type: 'boolean'
+      archivalDate:
+        type: 'string'
+        format: 'date'
+      settings:
+        type: 'object'
+        properties:
+          isPasswordProtected:
+            type: 'boolean'
+      customProps:
+        type: 'array'
+        items:
+          type: 'object'
+      address:
+        $ref: '#/definitions/address'
+      createdAt:
+        type: 'string'
+        format: 'date'
+      lastUpdatedAt:
+        type: 'string'
+        format: 'date'
+      associatedListId:
+        type: 'string'
+      occasion:
+        type: 'string'
+      pid:
+        type: 'string'
+      associatedListedProducts:
+        type: 'array'
+        items:
+          $ref: '#/definitions/products'
+      associatedBoughtProducts:
+        type: 'array'
+        items:
+          $ref: '#/definitions/orderDetails'
+      mode:
+        type: 'string'
+        enum: [public, private, shareable]
+      password:
+        type: 'string'
+        description: 'plain text password of password protected registry to share with friends/family'
+      shareToken:
+        type: 'string'
+        description: 'Token to share your registry with friends/family'
+      imageURL:
+        type: 'string'
+
+  paginatedObject:
+    type: 'object'
+    properties:
+      totalResultsCount:
+        type: 'integer'
+      page:
+        type: 'integer'
+      totalPageCount:
+        type: 'integer'
+      results:
+        type: 'array'
+        items:
+          $ref: '#/definitions/RegistrySummary'
+
+  RegistrySummary:
+    type: 'object'
+    properties:
+      id:
+        type: 'string'
+      registryName:
+        type: 'string'
+      creatorName:
+        type: 'string'
+      coCreatorName:
+        type: 'string'
+      expiryDate:
+        type: 'string'
+        format: 'date'
+      pid:
+        type: 'string'
+      occasion:
+        type: 'string'
+      settings:
+        type: 'object'
+        properties:
+          isPasswordProtected:
+            type: 'boolean'
+
+  products:
+    type: 'object'
+    properties:
+      epi:
+        type: 'string'
+        description: 'variant id'
+      empi:
+        type: 'string'
+        description: 'product id'
+      iu:
+        type: 'string'
+        description: 'image url'
+      du:
+        type: 'string'
+        description: 'canonical product url'
+      handle:
+        type: 'string'
+        description: 'canonical product path'
+      dt:
+        type: 'string'
+        description: 'product title'
+      pr:
+        type: 'string'
+        description: 'product price'
+      qty:
+        type: 'integer'
+        description: 'product quantity'
+      askQuantity:
+        type: 'integer'
+      boughtQuantity:
+        type: 'integer'
+      registryId:
+        type: 'string'
+      orderInfo:
+        $ref: '#/definitions/orderDetails'
+
+  placeholderOrder:
+    type: 'object'
+    properties:
+      orderID:
+        type: 'string'
+      Id:
+        type: 'string'
+      createdAt:
+        type: 'string'
+      email:
+        type: 'string'
+      contactEmail:
+        type: 'string'
+      primeShopperEmail:
+        type: 'string'
+      note:
+        type: 'string'
+      gifterName:
+        type: 'string'
+      gifterEmail:
+        type: 'string'
+      pid:
+        type: 'string'
+      registryId:
+        type: 'string'
+      isDummy:
+        type: 'boolean'
+
+  address:
+    type: 'object'
+    properties:
+      firstName:
+        type: 'string'
+      lastName:
+        type: 'string'
+      address1:
+        type: 'string'
+      address2:
+        type: 'string'
+      city:
+        type: 'string'
+      province:
+        type: 'string'
+      zip:
+        type: 'string'
+      country:
+        type: 'string'
+      countryCode:
+        type: 'string'
+      phone:
+        type: 'string'
+
+  ErrorResponse:
+    properties:
+      message:
+        type: string
+
+  registerUserRequestBody:
+    type: object
+    required:
+      - email
+      - appId
+      - platformCustomerId
+    properties:
+      email:
+        type: string
+        format: email
+        example: something@gmail.com
+      appId:
+        type: string
+        example: 3
+      platformCustomerId:
+        type: string
+        example: '122!dfgr@#@d3123vdfg#vdasd2!@3131das2a'
+      customProps:
+        type: object
+        properties:
+          timeZone:
+            type: string
+            example: IST
+
+  registerUserResponseBody:
+    type: object
+    properties:
+      userId:
+        type: integer
+        example: 1
+      token:
+        type: string
+        example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmMTFlNDgwY2FlMGY5NTg3OTRmZjk1Y2NkYjZlNWI5ODBhZTM1ZDY0YWZjNDJhZmM5NjZjZDZhMmUyMjZlOTZhIiwibWVyY2hhbnRJZCI6InNvbWVyYW5kb21lbmNyeXB0ZWRzdHJpbmciLCJhcHBJZCI6IjMiLCJwbGF0Zm9ybUN1c3RvbWVySWQiOiIxMjIhZGZnckAjQGQzMTIzdmRmZyN2ZGFzZDIhQDMxMzFkYXMyYSIsImlhdCI6MTY2OTc4MTE3OSwiZXhwIjoxNjY5NzkxOTc5fQ.N3qDawJMCKQMiPKF0NS78qTqDOIliau3jn4W2cE2PWiD89o4xZaJsYWlGqb1zd8oLtOcSA_k7BLLUcdCpFOXWw
